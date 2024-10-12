@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Depth Map Generator</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.1.1/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap');
+
+        :root {
+            --primary-color: #6c5ce7;
+            --secondary-color: #a29bfe;
+            --background-color: #2d3436;
+            --text-color: #dfe6e9;
+            --card-color: #34495e;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Poppins', sans-serif;
+            line-height: 1.6;
+            background-color: var(--background-color);
+            color: var(--text-color);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            background-color: var(--card-color);
+            padding: 2rem;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            text-align: center;
+            max-width: 600px;
+            width: 100%;
+        }
+
+        h1 {
+            margin-bottom: 2rem;
+            font-weight: 600;
+            color: var(--primary-color);
+        }
+
+        .upload-area {
+            border: 2px dashed var(--secondary-color);
+            border-radius: 10px;
+            padding: 2rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-bottom: 1rem;
+        }
+
+        .upload-area:hover {
+            background-color: rgba(255, 255, 255, 0.05);
+        }
+
+        .upload-area i {
+            font-size: 3rem;
+            color: var(--secondary-color);
+            margin-bottom: 1rem;
+        }
+
+        .upload-btn {
+            background-color: var(--primary-color);
+            color: white;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: inline-block;
+            margin-top: 1rem;
+        }
+
+        .upload-btn:hover {
+            background-color: var(--secondary-color);
+        }
+
+        .generate-btn, .download-btn {
+            background-color: var(--primary-color);
+            border: none;
+            color: white;
+            padding: 12px 24px;
+            text-align: center;
+            text-decoration: none;
+            display: inline-block;
+            font-size: 16px;
+            margin: 1rem 0;
+            cursor: pointer;
+            border-radius: 5px;
+            transition: all 0.3s ease;
+        }
+
+        .generate-btn:hover, .download-btn:hover {
+            background-color: var(--secondary-color);
+            transform: translateY(-2px);
+        }
+
+        #result {
+            margin-top: 2rem;
+        }
+
+        .image-container {
+            max-width: 100%;
+            margin-top: 1rem;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+        }
+
+        #depthMap {
+            max-width: 100%;
+            display: block;
+        }
+
+        #focalLength {
+            margin-top: 1rem;
+            font-weight: 300;
+        }
+
+        .loader {
+            border: 5px solid var(--card-color);
+            border-top: 5px solid var(--primary-color);
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+            display: none;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        @media (max-width: 480px) {
+            .container {
+                padding: 1rem;
+            }
+
+            h1 {
+                font-size: 1.5rem;
+            }
+
+            .upload-area {
+                padding: 1rem;
+            }
+
+            .generate-btn, .download-btn {
+                padding: 10px 20px;
+                font-size: 14px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Depth Map Generator</h1>
+        <div class="upload-area" id="dropArea">
+            <i class="fas fa-cloud-upload-alt"></i>
+            <p>Drag & Drop your image here or</p>
+            <label for="imageUpload" class="upload-btn">Choose File</label>
+            <input type="file" id="imageUpload" accept="image/*" hidden>
+        </div>
+        <button id="uploadButton" class="generate-btn">Generate Depth Map</button>
+        <div id="result">
+            <div class="image-container">
+                <img id="depthMap" alt="Depth Map">
+            </div>
+            <p id="focalLength"></p>
+            <button id="downloadButton" class="download-btn">
+                <i class="fas fa-download"></i> Download Depth Map
+            </button>
+        </div>
+        <div id="loader" class="loader"></div>
+    </div>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const imageUpload = document.getElementById('imageUpload');
+            const uploadButton = document.getElementById('uploadButton');
+            const depthMap = document.getElementById('depthMap');
+            const focalLength = document.getElementById('focalLength');
+            const downloadButton = document.getElementById('downloadButton');
+            const result = document.getElementById('result');
+            const loader = document.getElementById('loader');
+            const dropArea = document.getElementById('dropArea');
+
+            result.style.display = 'none';
+            downloadButton.style.display = 'none';
+
+            dropArea.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                dropArea.style.borderColor = 'var(--primary-color)';
+            });
+
+            dropArea.addEventListener('dragleave', () => {
+                dropArea.style.borderColor = 'var(--secondary-color)';
+            });
+
+            dropArea.addEventListener('drop', (e) => {
+                e.preventDefault();
+                dropArea.style.borderColor = 'var(--secondary-color)';
+                imageUpload.files = e.dataTransfer.files;
+            });
+
+            dropArea.addEventListener('click', () => {
+                imageUpload.click();
+            });
+
+            uploadButton.addEventListener('click', () => {
+                const file = imageUpload.files[0];
+                if (file) {
+                    const formData = new FormData();
+                    formData.append('image', file);
+
+                    result.style.display = 'none';
+                    loader.style.display = 'block';
+
+                    fetch('http://localhost:5000/generate_depth_map', {
+                        method: 'POST',
+                        body: formData
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        depthMap.src = `data:image/png;base64,${data.depth_map}`;
+                        focalLength.textContent = `Focal Length: ${data.focal_length}`;
+                        result.style.display = 'block';
+                        downloadButton.style.display = 'inline-block';
+                        loader.style.display = 'none';
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        focalLength.textContent = 'Error generating depth map';
+                        loader.style.display = 'none';
+                    });
+                } else {
+                    alert('Please select an image file');
+                }
+            });
+
+            downloadButton.addEventListener('click', () => {
+                const link = document.createElement('a');
+                link.href = depthMap.src;
+                link.download = 'depth_map.png';
+                link.click();
+            });
+        });
+    </script>
+</body>
+</html>
