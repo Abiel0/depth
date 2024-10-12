@@ -225,7 +225,7 @@
                     result.style.display = 'none';
                     loader.style.display = 'block';
 
-                    fetch('http://localhost:5000/generate_depth_map', {
+                    fetch('/generate_depth_map', {
                         method: 'POST',
                         body: formData
                     })
